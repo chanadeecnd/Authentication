@@ -2,6 +2,9 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const User = require('./models/user')
+// const md5 = require('md5')
+const bcrypt = require('bcrypt')
+const saltRounds = 10
 
 const app = express();
 const port = 3000;
@@ -23,21 +26,30 @@ app.get('/register',(req,res)=>{
 });
 
 app.post('/register',(req,res)=>{
-    const newUser = new User({
-        email:req.body.username,
-        password:req.body.password
-    });
-    newUser.save()
-    .then(()=>res.render('secrets'))
-    .catch(err=>console.log(err))
+    bcrypt.hash(req.body.password,saltRounds)
+    .then(hash=>{
+        const newUser = new User({
+            email:req.body.username,
+            password:hash
+        });
+        newUser.save()
+        .then(()=>res.render('secrets'))
+        .catch(err=>console.log(err))
+    })
+    
 });
 
 app.post('/login',(req,res)=>{
     const userName = req.body.username;
     User.findOne({email:userName})
     .then(user =>{
-        if(user.password === req.body.password){
-            res.render('secrets')
+        if(user){
+            bcrypt.compare(req.body.password,user.password)
+            .then(result=>{
+                if(result === true) res.render('secrets')
+                else res.redirect('login')
+            })
+            .catch(err=>console.log(`Error : ${err}`))    
         }else{
             res.redirect('login')
         }
